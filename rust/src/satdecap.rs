@@ -36,7 +36,7 @@ Self::name(), DEFAULT_PAYLOAD_LENGTH, DEFAULT_BUFFER_LENGTH, DEFAULT_READ_TIMEOU
     }
 }
 
-fn runtime(a: Arguments) {
+async fn runtime(a: Arguments) {
     let socket = UdpSocket::bind(a.local).expect("couldn't bind to address");
     socket.connect(a.remote).expect("connect function failed");
 
@@ -52,13 +52,12 @@ fn runtime(a: Arguments) {
     gse_decap_memory.provision_storage(buffer2).unwrap();
     
     let mut decapsulator = Decapsulator::new(gse_decap_memory, DefaultCrc {});
-
     loop {
         let payload_len = socket.recv(&mut payload).unwrap();
         let payload = &payload[..payload_len];
 
-        loop {
-            let status = decapsulator.decap(&payload);
+
+            let status = decapsulator.decap(payload);
 
             let (buffer, buffer_len) = match status {
                 Ok((DecapStatus::CompletedPkt(buffer, metadata), _)) => (buffer, metadata.pdu_len),
@@ -69,14 +68,14 @@ fn runtime(a: Arguments) {
                 }
             };
 
-            a.tap_iface.send(&buffer[..buffer_len]).unwrap();
+            a.tap_iface.send(&buffer[..buffer_len]).await.unwrap();
             decapsulator.provision_storage(buffer).unwrap();
-            break;
-        }
+    
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = parse_arguments::<SatDecap>();
-    runtime(args);
+    runtime(args).await;
 }

@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use tun_tap::{Iface, Mode};
+use tokio_tun::{Tun, TunBuilder};
 
 pub const DEFAULT_PAYLOAD_LENGTH: usize = 2048;
 pub const DEFAULT_BUFFER_LENGTH: usize = 8192; // bytes
@@ -20,9 +20,9 @@ pub trait Binary {
     fn usage();
 }
 
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct Arguments {
-    pub tap_iface: Iface,
+    pub tap_iface: Tun,
     pub local: SocketAddr,
     pub remote: SocketAddr,
     pub payload_len: usize,
@@ -108,13 +108,16 @@ pub fn parse_arguments<B: Binary>() -> Arguments {
         .next()
         .unwrap();
 
-    let tap_iface = Iface::without_packet_info(
-        interface
-            .expect("the tap interface must be provided")
-            .as_str(),
-        Mode::Tap,
-    )
-    .expect("Failed to create a TAP interface");
+    let config = TunBuilder::new()
+        .name(
+            interface
+                .expect("the tap interface must be provided")
+                .as_str(),
+        )
+        .tap(true)
+        .packet_info(false);
+
+    let tap_iface = config.try_build().expect("Failed to open TUN interface");
 
     let read_timeout = Duration::from_millis(read_timeout);
 

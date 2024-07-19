@@ -3,15 +3,13 @@
 
 mod common;
 use common::*;
-use std::net::UdpSocket;
-
 use dvb_gse_rust::{
     crc::DefaultCrc,
     gse_encap,
     label::{Label, LabelType},
 };
 use std::process::exit;
-
+use tokio::net::UdpSocket as TokioUdpSocket;
 const FRAG_ID: u8 = 0;
 const PROTOCOL: u16 = 9029;
 
@@ -42,7 +40,13 @@ Self::name(),DEFAULT_PAYLOAD_LENGTH, DEFAULT_BUFFER_LENGTH, DEFAULT_READ_TIMEOUT
     }
 }
 
-fn runtime(a: Arguments) {
+#[tokio::main]
+async fn main() {
+    let args = parse_arguments::<SatEncap>();
+    runtime(args).await;
+}
+
+async fn runtime(a: Arguments) {
     let mut buffer = vec![0; GSE_MAX_PDU_LEN].into_boxed_slice();
     let mut payload = vec![0; GSE_MAX_PACKET_LENGTH].into_boxed_slice();
     let desired_len: usize = if a.payload_len == 0 {
@@ -53,12 +57,12 @@ fn runtime(a: Arguments) {
 
     let mut encapsulator = gse_encap::Encapsulator::new(DefaultCrc {});
 
-    let socket = UdpSocket::bind(a.local).expect("couldn't bind to address");
-    socket.connect(a.remote).expect("connect function failed");
+    let socket = TokioUdpSocket::bind(a.local).await.expect("couldn't bind to address");
+    socket.connect(a.remote).await.expect("connect function failed");
 
     let mut counter: u64 = 1;
     loop {
-        let buffer_len = a.tap_iface.recv(&mut buffer[..a.buffer_len]).unwrap();
+        let buffer_len =  a.tap_iface.recv(&mut buffer).await.unwrap();
         let buffer = &buffer[..buffer_len];
 
         // Create a different label for each pdu
@@ -101,19 +105,11 @@ fn runtime(a: Arguments) {
                 payload_len = desired_len;
             }
 
-            socket
-                .send(&payload[..payload_len])
-                .expect("couldn't send the packet");
+            socket.send(&payload[..payload_len]).await.expect("couldn't send the packet");
 
-            if context == None {
+            if context.is_none() {
                 break;
             }
         }
     }
-}
-
-fn main() {
-    let args = parse_arguments::<SatEncap>();
-    runtime(args);
-    println!("Hello, world!");
 }

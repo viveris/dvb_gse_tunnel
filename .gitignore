@@ -2,9 +2,12 @@ gw0.log
 .pids
 st1.log
 testbed/*.deb
+testbed/.pids.netns
 .ssh_config
 .vagrant
 doc/*.png
+rust/Cargo.lock
+rust_testimonial/Cargo.lock
 *.o
 *.lo
 *.la

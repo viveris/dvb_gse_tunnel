@@ -34,22 +34,21 @@ Self::name(),DEFAULT_PAYLOAD_LENGTH, DEFAULT_BUFFER_LENGTH, DEFAULT_READ_TIMEOUT
     }
 }
 
-fn runtime(a: Arguments) {
+async fn runtime(a: Arguments) {
     let mut buffer = vec![0; GSE_MAX_PDU_LEN].into_boxed_slice();
 
     let socket = UdpSocket::bind(a.local).expect("couldn't bind to address");
     socket.connect(a.remote).expect("connect function failed");
 
     loop {
-        let buffer_len = a.tap_iface.recv(&mut buffer[..a.buffer_len]).unwrap();
+        let buffer_len = a.tap_iface.recv(&mut buffer[..a.buffer_len]).await.unwrap();
         let buffer = &buffer[..buffer_len];
-
-        socket.send(&buffer).expect("couldn't send the packet");
+        socket.send(buffer).expect("couldn't send the packet");
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = parse_arguments::<SatEncap>();
-    runtime(args);
-    println!("Hello, world!");
+    runtime(args).await;
 }
