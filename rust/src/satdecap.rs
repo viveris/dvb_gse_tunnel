@@ -4,6 +4,7 @@
 mod common;
 use dvb_gse_rust::{
     crc::DefaultCrc,
+    header_extension::SimpleMandatoryExtensionHeaderManager,
     gse_decap::{Decapsulator, DecapStatus, GseDecapMemory, SimpleGseMemory},
 };
 use std::{net::UdpSocket, process::exit};
@@ -51,7 +52,7 @@ async fn runtime(a: Arguments) {
     gse_decap_memory.provision_storage(buffer1).unwrap();
     gse_decap_memory.provision_storage(buffer2).unwrap();
     
-    let mut decapsulator = Decapsulator::new(gse_decap_memory, DefaultCrc {});
+    let mut decapsulator = Decapsulator::new(gse_decap_memory, DefaultCrc {}, SimpleMandatoryExtensionHeaderManager {});
     loop {
         let payload_len = socket.recv(&mut payload).unwrap();
         let payload = &payload[..payload_len];
@@ -61,7 +62,7 @@ async fn runtime(a: Arguments) {
 
             let (buffer, buffer_len) = match status {
                 Ok((DecapStatus::CompletedPkt(buffer, metadata), _)) => (buffer, metadata.pdu_len),
-                Ok((DecapStatus::FragmentedPkt, _)) => break,
+                Ok((DecapStatus::FragmentedPkt(_), _)) => break,
                 _ => {
                     eprintln!("ERROR when decap {:?}", status);
                     break;
