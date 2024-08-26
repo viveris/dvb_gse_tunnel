@@ -61,7 +61,7 @@ async fn runtime(a: Arguments) {
             let status = decapsulator.decap(payload);
 
             let (buffer, buffer_len) = match status {
-                Ok((DecapStatus::CompletedPkt(buffer, metadata), _)) => (buffer, metadata.pdu_len),
+                Ok((DecapStatus::CompletedPkt(buffer, metadata), _)) => (buffer, metadata.pdu_len()),
                 Ok((DecapStatus::FragmentedPkt(_), _)) => break,
                 _ => {
                     eprintln!("ERROR when decap {:?}", status);
